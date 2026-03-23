@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+}
+
+:root {
+  /* Dark Professional Theme with Vibrant Accents */
+  --background: 240 10% 4%;
+  --foreground: 0 0% 100%;
+  
+  --card: 240 10% 6%;
+  --card-foreground: 0 0% 100%;
+  
+  --border: 240 10% 15%;
+  --input: 240 10% 15%;
+  
+  /* Electric Cyan */
+  --primary: 199 89% 48%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 199 89% 48%;
+  
+  --muted: 240 10% 12%;
+  --muted-foreground: 240 10% 65%;
+  
+  /* Indigo Accent */
+  --accent: 258 90% 66%;
+  --accent-foreground: 0 0% 100%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground selection:bg-primary/30 selection:text-white;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+  }
+}
+
+@layer utilities {
+  .glow-effect {
+    box-shadow: 0 0 40px -10px hsl(var(--primary) / 0.3);
+  }
+  
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl;
+  }
+}

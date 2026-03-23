@@ -1,0 +1,58 @@
+Fase 1: O Alicerce e Banco de Dados
+Antes de escrever a lógica, precisamos preparar o terreno onde os dados vão morar.
+
+Linguagens e Ferramentas: Python, Docker e PostgreSQL.
+
+O Banco de Dados: Você vai precisar de um banco relacional para garantir a consistência financeira (os créditos). O PostgreSQL é a melhor escolha.
+
+Tabelas Principais:
+
+Users: ID, Email, GitHub ID, Créditos Disponíveis.
+
+Generations: ID, User_ID, Repo_Name, Readme_Content, LinkedIn_Posts (para o usuário não perder o que gerou).
+
+Infraestrutura: Crie um arquivo docker-compose.yml que suba o seu banco PostgreSQL e o seu servidor Python juntos. Isso garante que o ambiente não quebre na sua máquina.
+
+Fase 2: O Backend (O Motor em Python)
+Aqui é onde a mágica acontece. O backend vai orquestrar as APIs e controlar quem pagou.
+
+Framework: FastAPI. É moderno, incrivelmente rápido e perfeito para lidar com as chamadas externas que você fará.
+
+Integração 1: Login com GitHub (OAuth2): Você não vai criar um sistema de senhas. O usuário clica em "Login", vai para o GitHub, autoriza seu app e volta. O FastAPI pega o e-mail dele e cria a conta no banco, dando 1 crédito grátis.
+
+Integração 2: GitHub API: Usando a biblioteca PyGithub (ou fazendo requisições diretas com httpx), seu backend vai buscar a lista de repositórios do usuário. Quando ele escolher um, o backend fará o download da árvore de arquivos e do conteúdo dos arquivos principais (package.json, main.py, etc.).
+
+Integração 3: IA (OpenAI ou Gemini API): O backend monta um "super texto" juntando o código do GitHub e envia para a IA com um prompt do sistema muito bem desenhado para retornar o README e a tabela de posts em formato JSON.
+
+Fase 3: O Frontend (A Vitrine em React)
+A interface precisa ser rápida, responsiva e passar credibilidade para o desenvolvedor querer conectar o GitHub dele.
+
+Framework: React (iniciado com o Vite, que é muito mais rápido que o antigo Create React App).
+
+Estilização: Tailwind CSS. Permite criar botões bonitos, tabelas e layouts de forma super rápida sem precisar escrever arquivos CSS gigantescos.
+
+Comunicação: Use a biblioteca axios para fazer as requisições do React para o seu backend FastAPI (ex: pedir a lista de repositórios, enviar o comando de "Gerar", etc.).
+
+Telas Principais:
+
+Landing Page (Página de Vendas explicando o que é e botão de Login).
+
+Dashboard (Lista de repositórios do usuário).
+
+Tela de Resultado (O README renderizado de um lado, os posts do outro).
+
+Fase 4: Monetização (O Dinheiro)
+Como você vai vender pacotes avulsos, precisa de um sistema de pagamento que libere os créditos na hora.
+
+Integração 4: Stripe API. É o padrão ouro para SaaS.
+
+O Fluxo: No React, o usuário clica em "Comprar 10 Créditos - R$ 30". O FastAPI gera um link de checkout do Stripe e o usuário paga lá.
+
+O Segredo (Webhooks): Quando o pagamento é aprovado, o Stripe envia um aviso automático (Webhook) de volta para o seu FastAPI. Seu código lê esse aviso e soma +10 créditos na tabela daquele usuário de forma 100% automática.
+
+Fase 5: Deploy (Colocando no Ar)
+A melhor parte: colocar na internet.
+
+Frontend (React): Hospede na Vercel ou Netlify. É de graça, basta conectar o seu repositório do GitHub e eles colocam o site no ar a cada nova atualização que você fizer no código.
+
+Backend (Python + Docker) e Banco de Dados: Use plataformas como Render ou Railway. Elas leem o seu Dockerfile, instalam as dependências do Python e sobem o servidor de forma quase automática, além de fornecerem bancos de dados PostgreSQL com um clique.

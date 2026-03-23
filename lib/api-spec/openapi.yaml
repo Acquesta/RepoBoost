@@ -1,15 +1,22 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: RepoBoost API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: repos
+    description: GitHub repository operations
+  - name: generate
+    description: AI generation operations
+  - name: credits
+    description: Credit management operations
 paths:
   /healthz:
     get:
@@ -24,6 +31,224 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/github:
+    get:
+      operationId: initiateGithubAuth
+      tags: [auth]
+      summary: Initiate GitHub OAuth flow
+      responses:
+        "302":
+          description: Redirect to GitHub
+
+  /auth/github/callback:
+    get:
+      operationId: githubAuthCallback
+      tags: [auth]
+      summary: GitHub OAuth callback
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to frontend
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user info
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout current user
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /repos:
+    get:
+      operationId: listRepositories
+      tags: [repos]
+      summary: List user's GitHub repositories
+      responses:
+        "200":
+          description: List of repositories
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepositoryList"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /generate:
+    post:
+      operationId: generateContent
+      tags: [generate]
+      summary: Generate README and LinkedIn posts for a repository
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateRequest"
+      responses:
+        "200":
+          description: Generated content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "402":
+          description: Insufficient credits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /generations:
+    get:
+      operationId: listGenerations
+      tags: [generate]
+      summary: List user's past generations
+      responses:
+        "200":
+          description: List of generations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationList"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /generations/{id}:
+    get:
+      operationId: getGeneration
+      tags: [generate]
+      summary: Get a specific generation by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Generation details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Generation"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /credits:
+    get:
+      operationId: getCredits
+      tags: [credits]
+      summary: Get current user credit balance
+      responses:
+        "200":
+          description: Credit balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreditBalance"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /credits/checkout:
+    post:
+      operationId: createCheckoutSession
+      tags: [credits]
+      summary: Create a Stripe checkout session to purchase credits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutRequest"
+      responses:
+        "200":
+          description: Checkout session URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /webhooks/stripe:
+    post:
+      operationId: stripeWebhook
+      tags: [credits]
+      summary: Stripe webhook for payment events
+      responses:
+        "200":
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +259,202 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        githubId:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        avatarUrl:
+          type: string
+        credits:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - githubId
+        - username
+        - credits
+
+    Repository:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        fullName:
+          type: string
+        description:
+          type: string
+        language:
+          type: string
+        stars:
+          type: integer
+        updatedAt:
+          type: string
+          format: date-time
+        url:
+          type: string
+        private:
+          type: boolean
+      required:
+        - id
+        - name
+        - fullName
+        - url
+        - private
+
+    RepositoryList:
+      type: object
+      properties:
+        repos:
+          type: array
+          items:
+            $ref: "#/components/schemas/Repository"
+      required:
+        - repos
+
+    GenerateRequest:
+      type: object
+      properties:
+        repoFullName:
+          type: string
+        repoName:
+          type: string
+        repoDescription:
+          type: string
+        repoUrl:
+          type: string
+        repoLanguage:
+          type: string
+      required:
+        - repoFullName
+        - repoName
+
+    LinkedInPost:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        tone:
+          type: string
+        targetAudience:
+          type: string
+      required:
+        - title
+        - content
+        - tone
+        - targetAudience
+
+    GenerateResponse:
+      type: object
+      properties:
+        generationId:
+          type: integer
+        readme:
+          type: string
+        linkedinPosts:
+          type: array
+          items:
+            $ref: "#/components/schemas/LinkedInPost"
+        creditsRemaining:
+          type: integer
+      required:
+        - generationId
+        - readme
+        - linkedinPosts
+        - creditsRemaining
+
+    Generation:
+      type: object
+      properties:
+        id:
+          type: integer
+        repoName:
+          type: string
+        repoFullName:
+          type: string
+        readme:
+          type: string
+        linkedinPosts:
+          type: array
+          items:
+            $ref: "#/components/schemas/LinkedInPost"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - repoName
+        - repoFullName
+        - readme
+        - linkedinPosts
+        - createdAt
+
+    GenerationList:
+      type: object
+      properties:
+        generations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Generation"
+      required:
+        - generations
+
+    CreditBalance:
+      type: object
+      properties:
+        credits:
+          type: integer
+      required:
+        - credits
+
+    CheckoutRequest:
+      type: object
+      properties:
+        packageId:
+          type: string
+          enum:
+            - pack_10
+            - pack_25
+            - pack_50
+      required:
+        - packageId
+
+    CheckoutResponse:
+      type: object
+      properties:
+        checkoutUrl:
+          type: string
+      required:
+        - checkoutUrl

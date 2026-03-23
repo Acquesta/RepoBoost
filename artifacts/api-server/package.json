@@ -10,16 +10,22 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@types/express-session": "^1.18.2",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
+    "@workspace/integrations-openai-ai-server": "workspace:*",
+    "axios": "^1.13.6",
+    "connect-pg-simple": "^10.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
     "drizzle-orm": "catalog:",
     "express": "^5",
+    "express-session": "^1.19.0",
     "pino": "^9",
     "pino-http": "^10"
   },
   "devDependencies": {
+    "@types/connect-pg-simple": "^7.0.3",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

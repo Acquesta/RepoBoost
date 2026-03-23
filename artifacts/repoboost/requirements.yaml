@@ -1,0 +1,20 @@
+packages:
+  "framer-motion": "Animations and beautiful page transitions"
+  "react-markdown": "Rendering generated READMEs"
+  "remark-gfm": "GitHub Flavored Markdown support for tables and lists"
+  "date-fns": "Date formatting for generation history"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility function to efficiently merge Tailwind CSS classes"
+  "class-variance-authority": "For creating variant-based component APIs"
+
+images:
+  - path: "artifacts/repoboost/public/images/hero-bg.png"
+    description: "Dark, moody, abstract glowing mesh background with electric cyan and purple neon hues, extremely high quality, clean and professional for a developer SaaS tool"
+    aspect_ratio: "16:9"
+  - path: "artifacts/repoboost/public/images/logo-icon.png"
+    description: "A minimal, modern geometric logo icon of a spark or abstract tech symbol in vibrant electric cyan on a transparent background, professional and tech-focused"
+    aspect_ratio: "1:1"
+
+notes:
+  - Assumes standard API response schemas defined in lib/api-client-react
+  - Assumes wouter for client side routing
