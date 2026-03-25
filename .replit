@@ -24,3 +24,8 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+APP_URL = "https://978165ff-af56-4ad1-b425-9560441b493a-00-21wpfuk587ubw.janeway.replit.dev"
