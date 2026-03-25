@@ -181,7 +181,7 @@ Cada post do LinkedIn deve ser engajante, autêntico e mostrar o valor do projet
   }
 });
 
-router.get("/list", async (req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response) => {
   const userId = (req.session as any)?.userId;
   if (!userId) {
     res.status(401).json({ error: "Unauthorized", message: "Not logged in" });
