@@ -44,7 +44,6 @@ app.use(
     store: new PgSession({
       pool: pool as any,
       tableName: "user_sessions",
-      createTableIfMissing: true,
     }),
     secret: process.env.SESSION_SECRET || "repoboost-secret-key-change-in-production",
     resave: false,
