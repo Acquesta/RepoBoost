@@ -142,20 +142,31 @@ export const GetCreditsResponse = zod.object({
 });
 
 /**
- * @summary Create a Stripe checkout session to purchase credits
+ * @summary Create an Abacate Pay PIX QR Code to purchase credits
  */
 export const CreateCheckoutSessionBody = zod.object({
   packageId: zod.enum(["pack_10", "pack_25", "pack_50"]),
 });
 
 export const CreateCheckoutSessionResponse = zod.object({
-  checkoutUrl: zod.string(),
+  pixId: zod.string(),
+  brCode: zod.string(),
+  brCodeBase64: zod.string(),
+  expiresAt: zod.date(),
+  amount: zod.number(),
+  credits: zod.number(),
+  packageName: zod.string(),
 });
 
 /**
- * @summary Stripe webhook for payment events
+ * @summary Check PIX payment status and add credits if paid
  */
-export const StripeWebhookResponse = zod.object({
-  success: zod.boolean(),
-  message: zod.string().optional(),
+export const GetPaymentStatusQueryParams = zod.object({
+  pixId: zod.coerce.string(),
+});
+
+export const GetPaymentStatusResponse = zod.object({
+  status: zod.enum(["PENDING", "PAID", "EXPIRED", "CANCELLED"]),
+  creditsAdded: zod.number().optional(),
+  newBalance: zod.number().optional(),
 });

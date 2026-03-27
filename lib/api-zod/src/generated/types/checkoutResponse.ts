@@ -7,5 +7,11 @@
  */
 
 export interface CheckoutResponse {
-  checkoutUrl: string;
+  pixId: string;
+  brCode: string;
+  brCodeBase64: string;
+  expiresAt: Date;
+  amount: number;
+  credits: number;
+  packageName: string;
 }

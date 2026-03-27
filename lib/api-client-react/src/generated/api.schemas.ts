@@ -98,10 +98,36 @@ export interface CheckoutRequest {
 }
 
 export interface CheckoutResponse {
-  checkoutUrl: string;
+  pixId: string;
+  brCode: string;
+  brCodeBase64: string;
+  expiresAt: string;
+  amount: number;
+  credits: number;
+  packageName: string;
+}
+
+export type PaymentStatusResponseStatus =
+  (typeof PaymentStatusResponseStatus)[keyof typeof PaymentStatusResponseStatus];
+
+export const PaymentStatusResponseStatus = {
+  PENDING: "PENDING",
+  PAID: "PAID",
+  EXPIRED: "EXPIRED",
+  CANCELLED: "CANCELLED",
+} as const;
+
+export interface PaymentStatusResponse {
+  status: PaymentStatusResponseStatus;
+  creditsAdded?: number;
+  newBalance?: number;
 }
 
 export type GithubAuthCallbackParams = {
   code: string;
   state?: string;
+};
+
+export type GetPaymentStatusParams = {
+  pixId: string;
 };

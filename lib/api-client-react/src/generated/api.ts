@@ -25,8 +25,10 @@ import type {
   GenerateResponse,
   Generation,
   GenerationList,
+  GetPaymentStatusParams,
   GithubAuthCallbackParams,
   HealthStatus,
+  PaymentStatusResponse,
   RepositoryList,
   SuccessResponse,
   User,
@@ -832,7 +834,7 @@ export function useGetCredits<
 }
 
 /**
- * @summary Create a Stripe checkout session to purchase credits
+ * @summary Create an Abacate Pay PIX QR Code to purchase credits
  */
 export const getCreateCheckoutSessionUrl = () => {
   return `/api/credits/checkout`;
@@ -895,7 +897,7 @@ export type CreateCheckoutSessionMutationBody = BodyType<CheckoutRequest>;
 export type CreateCheckoutSessionMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Create a Stripe checkout session to purchase credits
+ * @summary Create an Abacate Pay PIX QR Code to purchase credits
  */
 export const useCreateCheckoutSession = <
   TError = ErrorType<ErrorResponse>,
@@ -918,82 +920,98 @@ export const useCreateCheckoutSession = <
 };
 
 /**
- * @summary Stripe webhook for payment events
+ * @summary Check PIX payment status and add credits if paid
  */
-export const getStripeWebhookUrl = () => {
-  return `/api/webhooks/stripe`;
+export const getGetPaymentStatusUrl = (params: GetPaymentStatusParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/credits/payment-status?${stringifiedParams}`
+    : `/api/credits/payment-status`;
 };
 
-export const stripeWebhook = async (
+export const getPaymentStatus = async (
+  params: GetPaymentStatusParams,
   options?: RequestInit,
-): Promise<SuccessResponse> => {
-  return customFetch<SuccessResponse>(getStripeWebhookUrl(), {
+): Promise<PaymentStatusResponse> => {
+  return customFetch<PaymentStatusResponse>(getGetPaymentStatusUrl(params), {
     ...options,
-    method: "POST",
+    method: "GET",
   });
 };
 
-export const getStripeWebhookMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof stripeWebhook>>,
-    TError,
-    void,
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof stripeWebhook>>,
-  TError,
-  void,
-  TContext
-> => {
-  const mutationKey = ["stripeWebhook"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof stripeWebhook>>,
-    void
-  > = () => {
-    return stripeWebhook(requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
+export const getGetPaymentStatusQueryKey = (
+  params?: GetPaymentStatusParams,
+) => {
+  return [`/api/credits/payment-status`, ...(params ? [params] : [])] as const;
 };
 
-export type StripeWebhookMutationResult = NonNullable<
-  Awaited<ReturnType<typeof stripeWebhook>>
->;
+export const getGetPaymentStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPaymentStatus>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params: GetPaymentStatusParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPaymentStatus>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-export type StripeWebhookMutationError = ErrorType<unknown>;
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPaymentStatusQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPaymentStatus>>
+  > = ({ signal }) => getPaymentStatus(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPaymentStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPaymentStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPaymentStatus>>
+>;
+export type GetPaymentStatusQueryError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Stripe webhook for payment events
+ * @summary Check PIX payment status and add credits if paid
  */
-export const useStripeWebhook = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof stripeWebhook>>,
-    TError,
-    void,
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof stripeWebhook>>,
-  TError,
-  void,
-  TContext
-> => {
-  return useMutation(getStripeWebhookMutationOptions(options));
-};
+
+export function useGetPaymentStatus<
+  TData = Awaited<ReturnType<typeof getPaymentStatus>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params: GetPaymentStatusParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPaymentStatus>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPaymentStatusQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

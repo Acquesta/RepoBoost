@@ -215,7 +215,7 @@ paths:
     post:
       operationId: createCheckoutSession
       tags: [credits]
-      summary: Create a Stripe checkout session to purchase credits
+      summary: Create an Abacate Pay PIX QR Code to purchase credits
       requestBody:
         required: true
         content:
@@ -224,7 +224,7 @@ paths:
               $ref: "#/components/schemas/CheckoutRequest"
       responses:
         "200":
-          description: Checkout session URL
+          description: PIX QR Code data
           content:
             application/json:
               schema:
@@ -236,18 +236,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /webhooks/stripe:
-    post:
-      operationId: stripeWebhook
+  /credits/payment-status:
+    get:
+      operationId: getPaymentStatus
       tags: [credits]
-      summary: Stripe webhook for payment events
+      summary: Check PIX payment status and add credits if paid
+      parameters:
+        - name: pixId
+          in: query
+          required: true
+          schema:
+            type: string
       responses:
         "200":
-          description: Webhook processed
+          description: Payment status
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
+                $ref: "#/components/schemas/PaymentStatusResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   schemas:
@@ -454,7 +466,39 @@ components:
     CheckoutResponse:
       type: object
       properties:
-        checkoutUrl:
+        pixId:
+          type: string
+        brCode:
+          type: string
+        brCodeBase64:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        amount:
+          type: integer
+        credits:
+          type: integer
+        packageName:
           type: string
       required:
-        - checkoutUrl
+        - pixId
+        - brCode
+        - brCodeBase64
+        - expiresAt
+        - amount
+        - credits
+        - packageName
+
+    PaymentStatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [PENDING, PAID, EXPIRED, CANCELLED]
+        creditsAdded:
+          type: integer
+        newBalance:
+          type: integer
+      required:
+        - status
