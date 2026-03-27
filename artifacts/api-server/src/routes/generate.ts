@@ -65,7 +65,8 @@ router.post("/", async (req: Request, res: Response) => {
 
   const parsed = GenerateContentBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Bad Request", message: "Invalid request body" });
+    req.log.error({ body: req.body, errors: parsed.error.errors }, "Generate body validation failed");
+    res.status(400).json({ error: "Bad Request", message: parsed.error.errors.map(e => e.message).join(", ") });
     return;
   }
 

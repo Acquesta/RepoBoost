@@ -40,9 +40,9 @@ export default function DashboardPage() {
       data: {
         repoFullName: repo.fullName,
         repoName: repo.name,
-        repoDescription: repo.description,
-        repoUrl: repo.url,
-        repoLanguage: repo.language
+        repoDescription: repo.description ?? undefined,
+        repoUrl: repo.url ?? undefined,
+        repoLanguage: repo.language ?? undefined
       }
     }, {
       onSuccess: (res) => {
@@ -51,17 +51,17 @@ export default function DashboardPage() {
         setLocation(`/result/${res.generationId}`);
       },
       onError: (err: any) => {
-        if (err?.status === 402 || err?.message?.toLowerCase().includes("credit")) {
+        const isNoCredits = err?.status === 402 || err?.data?.error === "Insufficient Credits" || err?.message?.toLowerCase().includes("credit");
+        if (isNoCredits) {
           openPricing();
           toast({
-            title: "Créditos Insuficientes",
-            description: "Você não possui créditos suficientes. Por favor, adquira um pacote.",
-            variant: "destructive"
+            title: "Você ficou sem créditos!",
+            description: "Compre um pacote via PIX para continuar gerando conteúdo.",
           });
         } else {
           toast({
-            title: "Erro na Geração",
-            description: err?.message || "Ocorreu um erro inesperado.",
+            title: "Erro ao gerar conteúdo",
+            description: err?.data?.message || err?.message || "Ocorreu um erro inesperado. Tente novamente.",
             variant: "destructive"
           });
         }
