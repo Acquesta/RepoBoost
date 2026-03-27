@@ -3,8 +3,10 @@ import { db } from "@workspace/db";
 import { usersTable, generationsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { GenerateContentBody } from "@workspace/api-zod";
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import axios from "axios";
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 const router: IRouter = Router();
 
@@ -140,13 +142,9 @@ O README deve incluir: badges, descrição clara, tecnologias usadas, como insta
 Cada post do LinkedIn deve ser engajante, autêntico e mostrar o valor do projeto.`;
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-5.2",
-      max_completion_tokens: 8192,
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const rawContent = completion.choices[0]?.message?.content || "";
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro-preview-03-25" });
+    const result = await model.generateContent(prompt);
+    const rawContent = result.response.text();
 
     let parsed_content: { readme: string; linkedinPosts: any[] };
     try {
