@@ -14,7 +14,6 @@
     "@types/express-session": "^1.18.2",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
-    "@google/generative-ai": "^0.24.0",
     "axios": "^1.13.6",
     "connect-pg-simple": "^10.0.0",
     "cookie-parser": "^1.4.7",
