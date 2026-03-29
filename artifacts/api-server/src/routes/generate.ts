@@ -142,7 +142,7 @@ O README deve incluir: badges, descrição clara, tecnologias usadas, como insta
 Cada post do LinkedIn deve ser engajante, autêntico e mostrar o valor do projeto.`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro-preview-03-25" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const result = await model.generateContent(prompt);
     const rawContent = result.response.text();
 
