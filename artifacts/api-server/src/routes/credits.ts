@@ -1,13 +1,12 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { usersTable, paymentsTable } from "@workspace/db";
+import { eq, sql, and } from "drizzle-orm";
 import { CreateCheckoutSessionBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
 const ABACATEPAY_API_KEY = process.env.ABACATEPAY_API_KEY;
-const APP_URL = process.env.APP_URL || "http://localhost:80";
 
 const CREDIT_PACKAGES: Record<string, { name: string; credits: number; priceInCents: number }> = {
   pack_10: { name: "Starter — 10 Créditos RepoBoost", credits: 10, priceInCents: 3000 },
@@ -84,7 +83,13 @@ router.post("/checkout", async (req: Request, res: Response) => {
 
     const { id: pixId, brCode, brCodeBase64, expiresAt } = json.data;
 
-    pixOrderMap.set(pixId, { userId, credits: pkg.credits, paid: false });
+    await db.insert(paymentsTable).values({
+      pixId,
+      userId,
+      amount: pkg.priceInCents,
+      credits: pkg.credits,
+      status: "PENDING",
+    });
 
     res.json({
       pixId,
@@ -100,8 +105,6 @@ router.post("/checkout", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Payment Error", message: "Falha ao criar QR Code PIX" });
   }
 });
-
-const pixOrderMap = new Map<string, { userId: number; credits: number; paid: boolean }>();
 
 router.get("/payment-status", async (req: Request, res: Response) => {
   const userId = (req.session as any)?.userId;
@@ -121,9 +124,15 @@ router.get("/payment-status", async (req: Request, res: Response) => {
     return;
   }
 
-  const order = pixOrderMap.get(pixId);
+  const paymentRecords = await db.select().from(paymentsTable).where(eq(paymentsTable.pixId, pixId));
+  const order = paymentRecords[0];
 
-  if (order?.paid) {
+  if (!order || order.userId !== userId) {
+    res.status(404).json({ error: "Not Found", message: "Payment order not found" });
+    return;
+  }
+
+  if (order.status === "PAID") {
     const users = await db.select({ credits: usersTable.credits }).from(usersTable).where(eq(usersTable.id, userId));
     return res.json({ status: "PAID", creditsAdded: 0, newBalance: users[0]?.credits ?? 0 });
   }
@@ -141,20 +150,32 @@ router.get("/payment-status", async (req: Request, res: Response) => {
 
     const status: string = json.data.status;
 
-    if (status === "PAID" && order && !order.paid) {
-      order.paid = true;
+    if (status === "PAID" && order.status !== "PAID") {
+      const updatedOrder = await db.update(paymentsTable)
+        .set({ status: "PAID", updatedAt: new Date() })
+        .where(and(eq(paymentsTable.id, order.id), eq(paymentsTable.status, "PENDING")))
+        .returning({ id: paymentsTable.id });
 
-      const updatedUsers = await db
-        .update(usersTable)
-        .set({ credits: sql`${usersTable.credits} + ${order.credits}` })
-        .where(eq(usersTable.id, userId))
-        .returning({ credits: usersTable.credits });
+      if (updatedOrder.length > 0) {
+        const updatedUsers = await db
+          .update(usersTable)
+          .set({ credits: sql`${usersTable.credits} + ${order.credits}` })
+          .where(eq(usersTable.id, userId))
+          .returning({ credits: usersTable.credits });
 
-      return res.json({
-        status: "PAID",
-        creditsAdded: order.credits,
-        newBalance: updatedUsers[0]?.credits ?? 0,
-      });
+        return res.json({
+          status: "PAID",
+          creditsAdded: order.credits,
+          newBalance: updatedUsers[0]?.credits ?? 0,
+        });
+      } else {
+        const users = await db.select({ credits: usersTable.credits }).from(usersTable).where(eq(usersTable.id, userId));
+        return res.json({ status: "PAID", creditsAdded: 0, newBalance: users[0]?.credits ?? 0 });
+      }
+    }
+
+    if (status !== order.status) {
+      await db.update(paymentsTable).set({ status, updatedAt: new Date() }).where(eq(paymentsTable.id, order.id));
     }
 
     res.json({ status });
@@ -164,6 +185,47 @@ router.get("/payment-status", async (req: Request, res: Response) => {
   }
 
   return res.status(200).end();
+});
+
+router.post("/simulate-payment", async (req: Request, res: Response) => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized", message: "Not logged in" });
+    return;
+  }
+
+  const { pixId } = req.body;
+  if (!pixId) {
+    res.status(400).json({ error: "Bad Request", message: "pixId is required" });
+    return;
+  }
+
+  if (!ABACATEPAY_API_KEY) {
+    res.status(500).json({ error: "Payment not configured" });
+    return;
+  }
+
+  try {
+    const simulateRes = await fetch(`${ABACATE_BASE}/pixQrCode/simulate-payment?id=${encodeURIComponent(pixId)}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${ABACATEPAY_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+
+    const json = (await simulateRes.json()) as any;
+
+    if (json.error) {
+      throw new Error(json.error || "Failed to simulate PIX");
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    req.log.error({ err }, "Abacate Pay simulation error");
+    res.status(500).json({ error: "Simulation Error", message: "Falha ao simular pagamento" });
+  }
 });
 
 export default router;

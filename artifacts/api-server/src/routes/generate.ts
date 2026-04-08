@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { usersTable, generationsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { GenerateContentBody } from "@workspace/api-zod";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import axios from "axios";
@@ -82,7 +82,13 @@ router.post("/", async (req: Request, res: Response) => {
 
   const user = users[0];
 
-  if (user.credits <= 0) {
+  const updatedUsers = await db
+    .update(usersTable)
+    .set({ credits: sql`${usersTable.credits} - 1`, updatedAt: new Date() })
+    .where(and(eq(usersTable.id, userId), sql`${usersTable.credits} > 0`))
+    .returning({ credits: usersTable.credits });
+
+  if (updatedUsers.length === 0) {
     res.status(402).json({ error: "Insufficient Credits", message: "Você não tem créditos suficientes. Compre um pacote para continuar." });
     return;
   }
@@ -97,7 +103,7 @@ router.post("/", async (req: Request, res: Response) => {
   const prompt = `Você é um especialista em marketing técnico para desenvolvedores. Analise o repositório GitHub abaixo e gere:
 
 1. Um README.md profissional e completo em Português (BR)
-2. Uma lista de 4 posts para LinkedIn, variando o tom e a audiência
+2. Uma lista de 5 posts para LinkedIn, variando o tom e a audiência
 
 Repositório: ${repoFullName}
 Nome: ${repoName}
@@ -134,12 +140,18 @@ Retorne APENAS um JSON válido com o seguinte formato (sem markdown, sem texto e
       "content": "Conteúdo do quarto post...",
       "tone": "Educacional",
       "targetAudience": "Iniciantes em programação"
+    },
+    {
+      "title": "Título do quinto post (Nostálgico)",
+      "content": "Conteúdo do quinto post abordando de forma nostálgica a jornada de quando você criou esse repositório no passado, como código velho também é experiência...",
+      "tone": "Nostálgico / TBT",
+      "targetAudience": "Comunidade tech em geral, para gerar identificação"
     }
   ]
 }
 
 O README deve incluir: badges, descrição clara, tecnologias usadas, como instalar/executar, features principais, estrutura de arquivos (se relevante), e contribuição.
-Cada post do LinkedIn deve ser engajante, autêntico e mostrar o valor do projeto.`;
+Cada post do LinkedIn deve ser engajante, autêntico e mostrar o valor ou a evolução do projeto.`;
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
@@ -151,12 +163,12 @@ Cada post do LinkedIn deve ser engajante, autêntico e mostrar o valor do projet
       const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
       parsed_content = JSON.parse(jsonMatch ? jsonMatch[0] : rawContent);
     } catch {
+      await db.update(usersTable).set({ credits: sql`${usersTable.credits} + 1` }).where(eq(usersTable.id, userId));
       req.log.error({ rawContent }, "Failed to parse AI response as JSON");
       res.status(500).json({ error: "AI Error", message: "Failed to parse generated content" });
       return;
     }
 
-    await db.update(usersTable).set({ credits: user.credits - 1, updatedAt: new Date() }).where(eq(usersTable.id, userId));
 
     const inserted = await db.insert(generationsTable).values({
       userId,
@@ -172,9 +184,10 @@ Cada post do LinkedIn deve ser engajante, autêntico e mostrar o valor do projet
       generationId: inserted[0].id,
       readme: parsed_content.readme,
       linkedinPosts: parsed_content.linkedinPosts,
-      creditsRemaining: user.credits - 1,
+      creditsRemaining: updatedUsers[0].credits,
     });
   } catch (err) {
+    await db.update(usersTable).set({ credits: sql`${usersTable.credits} + 1` }).where(eq(usersTable.id, userId));
     req.log.error({ err }, "AI generation error");
     res.status(500).json({ error: "AI Error", message: "Failed to generate content" });
   }

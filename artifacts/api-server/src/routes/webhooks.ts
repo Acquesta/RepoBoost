@@ -1,62 +1,88 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { usersTable, paymentsTable } from "@workspace/db";
+import { eq, sql, and } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+const ABACATEPAY_API_KEY = process.env.ABACATEPAY_API_KEY;
+const ABACATE_BASE = "https://api.abacatepay.com/v1";
 
-router.post("/stripe", async (req: Request, res: Response) => {
-  const sig = req.headers["stripe-signature"] as string;
-  const rawBody = (req as any).rawBody as Buffer;
+router.post("/abacate", async (req: Request, res: Response) => {
+  const rawBody = (req as any).rawBody as Buffer | undefined;
 
-  if (!STRIPE_WEBHOOK_SECRET || !rawBody) {
-    res.status(400).json({ error: "Webhook not configured" });
+  let event: any;
+  try {
+    const rawBodyString = rawBody ? rawBody.toString() : "";
+    if (rawBodyString) {
+      event = JSON.parse(rawBodyString);
+    } else if (req.body && Object.keys(req.body).length > 0) {
+      event = req.body;
+    } else {
+      req.log.error("Empty webhook payload body from Abacate Pay");
+      res.status(400).json({ error: "Empty webhook payload" });
+      return;
+    }
+  } catch (err) {
+    req.log.error({ err }, "Abacate Pay webhook parse failed");
+    res.status(400).json({ error: "Invalid webhook payload" });
     return;
   }
 
-  let event: any;
+  const eventType = event.event || event.type;
+  if (eventType === "pix.paid") {
+    const pixId = event.data?.id || event.id;
 
-  try {
-    const crypto = await import("crypto");
-    const parts = sig.split(",");
-    const timestamp = parts.find((p) => p.startsWith("t="))?.split("=")[1];
-    const v1Sig = parts.find((p) => p.startsWith("v1="))?.split("=")[1];
-    const payload = `${timestamp}.${rawBody.toString()}`;
-    const expected = crypto.createHmac("sha256", STRIPE_WEBHOOK_SECRET).update(payload).digest("hex");
-
-    if (expected !== v1Sig) {
-      res.status(400).json({ error: "Invalid signature" });
+    if (!pixId) {
+      res.status(400).json({ error: "Missing PIX ID" });
       return;
     }
 
-    event = JSON.parse(rawBody.toString());
-  } catch (err) {
-    req.log.error({ err }, "Webhook signature verification failed");
-    res.status(400).json({ error: "Invalid webhook" });
-    return;
-  }
-
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    const { userId, credits } = session.metadata || {};
-
-    if (userId && credits) {
-      try {
-        await db
-          .update(usersTable)
-          .set({ credits: sql`${usersTable.credits} + ${parseInt(credits, 10)}`, updatedAt: new Date() })
-          .where(eq(usersTable.id, parseInt(userId, 10)));
-
-        req.log.info({ userId, credits }, "Credits added after payment");
-      } catch (err) {
-        req.log.error({ err }, "Failed to add credits after payment");
+    try {
+      if (!ABACATEPAY_API_KEY) {
+        throw new Error("Missing ABACATEPAY_API_KEY");
       }
+
+      const checkRes = await fetch(`${ABACATE_BASE}/pixQrCode/check?id=${encodeURIComponent(pixId)}`, {
+        headers: { Authorization: `Bearer ${ABACATEPAY_API_KEY}` },
+      });
+
+      const json = (await checkRes.json()) as any;
+      
+      if (!json.error && json.data?.status === "PAID") {
+         const paymentRecords = await db.select().from(paymentsTable).where(eq(paymentsTable.pixId, pixId));
+         const order = paymentRecords[0];
+
+         if (order && order.status !== "PAID") {
+            await db.transaction(async (tx) => {
+               const updated = await tx.update(paymentsTable)
+                  .set({ status: "PAID", updatedAt: new Date() })
+                  .where(and(eq(paymentsTable.id, order.id), eq(paymentsTable.status, "PENDING")))
+                  .returning({ id: paymentsTable.id });
+               
+               if (updated.length > 0) {
+                  await tx.update(usersTable).set({ credits: sql`${usersTable.credits} + ${order.credits}` }).where(eq(usersTable.id, order.userId));
+                  req.log.info({ pixId, userId: order.userId, credits: order.credits }, "Credits added after PIX payment (webhook)");
+               }
+            });
+         }
+      }
+    } catch (err) {
+      req.log.error({ err }, "Failed to verify or process Abacate Pay webhook");
+      res.status(500).json({ error: "Internal error processing webhook" });
+      return;
+    }
+  } else if (eventType === "pix.expired") {
+    const pixId = event.data?.id || event.id;
+    if (pixId) {
+      try {
+        await db.update(paymentsTable).set({ status: "EXPIRED", updatedAt: new Date() }).where(eq(paymentsTable.pixId, pixId));
+      } catch (e) {}
     }
   }
 
   res.json({ success: true });
 });
+
 
 export default router;

@@ -33,7 +33,7 @@ app.use(
 );
 
 app.use(cors({
-  origin: true,
+  origin: process.env.CORS_ORIGIN || true, // Restringe a origin se definida
   credentials: true,
 }));
 
@@ -49,14 +49,15 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       httpOnly: true,
+      sameSite: "lax",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     },
   })
 );
 
-app.use("/api/webhooks/stripe", express.raw({ type: "application/json" }), (req, _res, next) => {
+app.use("/api/webhooks", express.raw({ type: "application/json" }), (req, _res, next) => {
   (req as any).rawBody = req.body;
   next();
 });

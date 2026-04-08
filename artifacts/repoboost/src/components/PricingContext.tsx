@@ -185,6 +185,26 @@ function PixModal({ pixData, onClose, onSuccess }: { pixData: PixData; onClose: 
           <p className="text-xs text-muted-foreground">
             Aguardando confirmação do pagamento automaticamente...
           </p>
+
+          {import.meta.env.DEV && (
+            <button
+              onClick={async () => {
+                try {
+                  toast({ title: "Simulando pagamento..." });
+                  await fetch("/api/credits/simulate-payment", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ pixId: pixData.pixId }),
+                  });
+                } catch (e) {
+                   toast({ title: "Erro na simulação", variant: "destructive" });
+                }
+              }}
+              className="mt-4 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm w-full font-medium"
+            >
+              🛠 Simular Pagamento (Apenas Dev)
+            </button>
+          )}
         </>
       )}
     </div>

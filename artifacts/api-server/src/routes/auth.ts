@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import crypto from "crypto";
 import axios from "axios";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
@@ -11,12 +12,13 @@ const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
 const APP_URL = process.env.APP_URL || "http://localhost:80";
 const CALLBACK_URL = `${APP_URL}/api/auth/github/callback`;
 
-router.get("/github", (_req: Request, res: Response) => {
+router.get("/github", (req: Request, res: Response) => {
   if (!GITHUB_CLIENT_ID) {
     res.status(500).json({ error: "GitHub OAuth not configured" });
     return;
   }
-  const state = Math.random().toString(36).substring(7);
+  const state = crypto.randomBytes(16).toString("hex");
+  (req.session as any).oauthState = state;
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
     redirect_uri: CALLBACK_URL,
@@ -27,11 +29,19 @@ router.get("/github", (_req: Request, res: Response) => {
 });
 
 router.get("/github/callback", async (req: Request, res: Response) => {
-  const { code } = req.query as { code: string };
+  const { code, state } = req.query as { code: string; state?: string };
   if (!code) {
     res.redirect("/?error=no_code");
     return;
   }
+
+  const storedState = (req.session as any).oauthState;
+  if (!state || state !== storedState) {
+    req.log.warn({ state, storedState }, "Invalid or missing OAuth state parameter");
+    res.redirect("/?error=auth_failed");
+    return;
+  }
+  delete (req.session as any).oauthState;
 
   try {
     const tokenRes = await axios.post(

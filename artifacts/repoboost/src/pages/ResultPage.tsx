@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useGetGeneration } from "@workspace/api-client-react";
 import { useParams, Link } from "wouter";
 import { Spinner, Badge, buttonVariants } from "@/components/shared";
-import { FileText, Linkedin, Copy, ArrowLeft, Check } from "lucide-react";
+import { FileText, Linkedin, Copy, ArrowLeft, Check, ExternalLink } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { copyToClipboard } from "@/lib/utils";
@@ -48,9 +48,19 @@ export default function ResultPage() {
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar aos Repositórios
         </Link>
         
-        <div className="mb-10">
-          <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">Resultado: {generation.repoName}</h1>
-          <p className="text-muted-foreground">Aqui estão os materiais gerados para destacar o seu projeto.</p>
+        <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">Resultado: {generation.repoName}</h1>
+            <p className="text-muted-foreground">Aqui estão os materiais gerados para destacar o seu projeto.</p>
+          </div>
+          <a 
+            href={`https://github.com/${generation.repoFullName}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className={buttonVariants({ variant: "default" })}
+          >
+            Acessar Repositório <ExternalLink className="w-4 h-4 ml-2" />
+          </a>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8 items-start">
