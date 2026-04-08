@@ -212,7 +212,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     return;
   }
 
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Bad Request", message: "Invalid ID" });
     return;

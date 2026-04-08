@@ -162,6 +162,8 @@ router.get("/payment-status", async (req: Request, res: Response) => {
     req.log.error({ err }, "Abacate Pay status check error");
     res.status(500).json({ error: "Status Error", message: "Falha ao verificar pagamento" });
   }
+
+  return res.status(200).end();
 });
 
 export default router;

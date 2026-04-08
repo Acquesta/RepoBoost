@@ -1,10 +1,13 @@
-import { useGetMe } from "@workspace/api-client-react";
+import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 
 export function useAuth(requireAuth = true) {
   const { data: user, isLoading, isError } = useGetMe({
-    query: { retry: false }
+    query: { 
+      queryKey: getGetMeQueryKey(), // <-- Injeta a chave gerada aqui
+      retry: false 
+    }
   });
   const [, setLocation] = useLocation();
 
